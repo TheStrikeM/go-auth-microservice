@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"microauth/internal/domain/config"
 	"time"
@@ -58,5 +59,17 @@ func createUrl(cfg config.PostgresConfig) string {
 		cfg.Host,
 		cfg.Port,
 		cfg.Db,
+	)
+}
+
+func GetError(err error) string {
+	pgErr := err.(*pgconn.PgError)
+	return fmt.Sprintf(
+		"SQL ERROR - %s, Detail - %s, Where - %s, Code - %s, SQLState - %s",
+		pgErr.Message,
+		pgErr.Detail,
+		pgErr.Where,
+		pgErr.Code,
+		pgErr.SQLState(),
 	)
 }
