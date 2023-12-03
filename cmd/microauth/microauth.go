@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"microauth/internal/domain/config"
+	"microauth/internal/storage/clients/postgresql"
 	configManager "microauth/pkg/config"
 	"microauth/pkg/logger/handlers/slogpretty"
 	"os"
@@ -21,7 +22,13 @@ func main() {
 
 	fmt.Println("Start loading logger...")
 	logger := setupLogger(cfg.Env)
-	logger.Info("Yey! Logger, Config enabled!")
+	logger.Debug("Yey! Logger, Config enabled!")
+
+	logger.Debug("Creating connection pool with database...")
+	_, err := postgresql.New(cfg)
+	if err != nil {
+		panic("Cannot create connection pool with database. Error: " + err.Error())
+	}
 }
 
 func setupLogger(env string) *slog.Logger {
