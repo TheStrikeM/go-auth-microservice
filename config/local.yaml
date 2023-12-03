@@ -1,0 +1,7 @@
+env: "local"
+postgres:
+  username: "thestrikem"
+  password: "root"
+  host: "localhost"
+  port: "5432"
+  db: "strikedb"
