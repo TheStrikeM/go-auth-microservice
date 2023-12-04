@@ -1,11 +1,10 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"golang.org/x/net/http2"
-	"io"
+	"log/slog"
+	"microauth/internal/domain/httpmanager"
 	"microauth/internal/modules/auth/handlers"
 	"microauth/internal/modules/auth/models/dto"
 	"net/http"
@@ -19,11 +18,6 @@ type IAuthHandler interface {
 type AuthHandler struct {
 	userService handlers.IUserService
 }
-
-type ResponseForm[T ErrorForm | SignInForm | RegisterForm] struct {
-	Code   int `json:"code"`
-	Result T   `json:"result"`
-}
 type ErrorForm struct {
 	Message string `json:"message"`
 }
@@ -35,36 +29,36 @@ type RegisterForm struct {
 }
 
 func (auth AuthHandler) SignIn(w http.ResponseWriter, req *http.Request) {
-	requestBody, _ := io.ReadAll(req.Body)
-	var userDto *dto.UserDTO
-	if err := json.Unmarshal(requestBody, userDto); err != nil {
-		result, _ := json.Marshal(
-			ResponseForm[ErrorForm]{
-				Code:   int(http2.ErrCodeInternal),
-				Result: ErrorForm{Message: fmt.Sprintf("Json-error %s", err.Error())},
-			},
+	var userDto dto.UserDTO
+
+	if err := httpmanager.Request(req, &userDto); err != nil {
+		result, err := httpmanager.Response[ErrorForm](
+			http.StatusBadRequest,
+			ErrorForm{Message: fmt.Sprintf("Json-error %s", err.Error())},
 		)
-		w.Write(result)
-		return
-	}
-	token, err := auth.userService.SignIn(userDto)
-	if err != nil {
-		result, _ := json.Marshal(
-			ResponseForm[ErrorForm]{
-				Code:   int(http2.ErrCodeInternal),
-				Result: ErrorForm{Message: fmt.Sprintf("SignIn-error %s", err.Error())},
-			},
-		)
+		if err != nil {
+			slog.Error("Global error")
+			return
+		}
 		w.Write(result)
 		return
 	}
 
-	result, _ := json.Marshal(
-		ResponseForm[SignInForm]{
-			Code:   200,
-			Result: SignInForm{Token: token},
-		},
-	)
+	token, err := auth.userService.SignIn(&userDto)
+	if err != nil {
+		result, err := httpmanager.Response[ErrorForm](
+			http.StatusBadRequest,
+			ErrorForm{Message: fmt.Sprintf("SignIn-error %s", err.Error())},
+		)
+		if err != nil {
+			slog.Error("Global error")
+			return
+		}
+		w.Write(result)
+		return
+	}
+
+	result, _ := httpmanager.Response[SignInForm](http.StatusOK, SignInForm{Token: token})
 	w.Write(result)
 	return
 }
