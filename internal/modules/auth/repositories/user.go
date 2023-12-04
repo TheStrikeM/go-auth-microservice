@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
 	"microauth/internal/modules/auth/models/dto"
@@ -25,14 +26,22 @@ func (ur *UserRepository) AddUser(ctx context.Context, ud *dto.UserDTO) error {
 			(username, password)
 		VALUES 
 			($1, $2)
+		RETURNING id
 	`
-	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username, ud.Password).Scan(); err != nil {
+	var id string
+	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username, ud.Password).Scan(&id); err != nil {
 		var pgErr *pgconn.PgError
+		fmt.Println(err.Error() + " this is error")
+		fmt.Println("Test3")
 		if errors.As(err, &pgErr) {
+			fmt.Println("Test4")
 			ur.log.Error(postgresql.GetError(err))
 		}
+		fmt.Println("Test 1")
 		return pgErr
 	}
+
+	fmt.Println("Test 2")
 	return nil
 }
 
@@ -42,32 +51,33 @@ func (ur *UserRepository) User(ctx context.Context, ud *dto.UserDTO) (*models.Us
 		FROM public.users
 		WHERE username=$1 AND password=$2
 	`
-	var userResult *models.User
+	userResult := models.User{ID: "", Username: "", PassHash: ""}
 
-	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username, ud.Password).Scan(&userResult.ID, &userResult.Username); err != nil {
+	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username, ud.Password).Scan(&userResult.ID, &userResult.Username, &userResult.PassHash); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			ur.log.Error(postgresql.GetError(err))
 		}
 		return nil, pgErr
 	}
-	return userResult, nil
+	return &userResult, nil
 }
 
 func (ur *UserRepository) UserWithoutPassword(ctx context.Context, ud *dto.UserDTO) (*models.User, error) {
 	query := `
-		SELECT id, username
+		SELECT id, username, password
 		FROM public.users
 		WHERE username=$1
 	`
-	var userResult *models.User
+	userResult := models.User{ID: "", Username: "", PassHash: ""}
 
-	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username).Scan(&userResult.ID, &userResult.Username); err != nil {
+	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username).Scan(&userResult.ID, &userResult.Username, &userResult.PassHash); err != nil {
+		// TODO: Адекватный вывод ошибки не работает
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			ur.log.Error(postgresql.GetError(err))
 		}
 		return nil, pgErr
 	}
-	return userResult, nil
+	return &userResult, nil
 }

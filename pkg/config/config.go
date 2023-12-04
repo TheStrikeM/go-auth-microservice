@@ -24,5 +24,8 @@ func MustLoad[Config any]() *Config {
 }
 
 func fetchPath() string {
+	if os.Getenv("CONFIG_PATH") == "" {
+		return "/home/thestrikem/GolandProjects/microauth/config/local.yaml"
+	}
 	return os.Getenv("CONFIG_PATH")
 }

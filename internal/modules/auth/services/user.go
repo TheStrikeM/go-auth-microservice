@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"log/slog"
 	"microauth/internal/modules"
 	"microauth/internal/modules/auth/models/dto"
 	"microauth/internal/modules/auth/models/models"
-	"microauth/internal/modules/auth/utils/jwt"
+	"microauth/pkg/hash"
+	jwtManager "microauth/pkg/jwt"
 	"time"
 	"unicode"
 )
@@ -39,20 +41,30 @@ func (us *UserService) SignIn(userDto *dto.UserDTO) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	user, err := us.repo.User(ctx, userDto)
+	user, err := us.repo.UserWithoutPassword(ctx, userDto)
 	if err != nil {
+		fmt.Println(user)
+		return "", fmt.Errorf("signin %s", modules.ErrInvalidCredentials)
+	}
+	if !hash.ComparePassword(user.PassHash, userDto.Password) {
 		return "", fmt.Errorf("signin %s", modules.ErrInvalidCredentials)
 	}
 
-	token, err := jwt.GenerateToken(user.ID, user.Username)
+	token, err := jwtManager.GenerateToken(
+		jwt.MapClaims{
+			"sub":      user.ID,
+			"username": user.Username,
+			"exp":      time.Now().Add(time.Hour * 72).Unix(),
+		},
+	)
+
 	if err != nil {
 		return "", fmt.Errorf("signin %s", err.Error())
 	}
-
 	return token, nil
 }
 
-func (us *UserService) Register(userDto *dto.UserDTO) error {
+func (us *UserService) Register(userDto *dto.UserDTO) (err error) {
 	// TODO: Customize validate errors
 	if !isValidUsername(userDto.Username) || !isValidPassword(userDto.Password) {
 		return fmt.Errorf("register %s", modules.ErrValidationAuth)
@@ -60,14 +72,19 @@ func (us *UserService) Register(userDto *dto.UserDTO) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if _, err := us.repo.User(ctx, userDto); err == nil {
+	if _, err := us.repo.UserWithoutPassword(ctx, userDto); err == nil {
 		return fmt.Errorf("register %s", modules.ErrUserExists)
+	}
+
+	userDto.Password, err = hash.HashPassword(userDto.Password)
+	if err != nil {
+		return fmt.Errorf("registe %s", modules.ErrPasswordHash)
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err := us.repo.AddUser(ctx, userDto); err != nil {
-		return fmt.Errorf("register %s", modules.ErrUserAdding)
+		return fmt.Errorf("register %s is %s", modules.ErrUserAdding, err.Error())
 	}
 
 	return nil
