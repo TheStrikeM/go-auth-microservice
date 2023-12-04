@@ -1,12 +1,23 @@
 package modules
 
-var (
-	ErrValidationAuth     = "Validation error"
-	ErrUserExists         = "User already exists"
-	ErrUserAdding         = "Error in AddUser"
-	ErrInvalidCredentials = "Invalid credentials"
-	ErrPasswordHash       = "Error in password hash"
+import (
+	"log/slog"
+	"microauth/internal/modules/auth"
+	"microauth/internal/storage/clients/postgresql"
 )
 
 type ModuleInitializer struct {
+	Client *postgresql.PSQLClient
+	Log    *slog.Logger
+}
+
+func New(client *postgresql.PSQLClient, log *slog.Logger) *ModuleInitializer {
+	return &ModuleInitializer{
+		Client: client,
+		Log:    log,
+	}
+}
+
+func (mi ModuleInitializer) CreateAllRoutes() {
+	auth.New(mi.Client, mi.Log, AUTH_PATH)
 }
