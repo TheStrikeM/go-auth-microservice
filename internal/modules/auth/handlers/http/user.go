@@ -12,7 +12,7 @@ import (
 
 type IAuthHandler interface {
 	SignIn(w http.ResponseWriter, req *http.Request)
-	//Register(w http.ResponseWriter, req *http.Request)
+	Register(w http.ResponseWriter, req *http.Request)
 }
 
 type AuthHandler struct {
@@ -63,6 +63,39 @@ func (auth AuthHandler) SignIn(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+func (auth AuthHandler) Register(w http.ResponseWriter, req *http.Request) {
+	var userDto dto.UserDTO
+
+	if err := httpmanager.Request(req, &userDto); err != nil {
+		result, err := httpmanager.Response[ErrorForm](
+			http.StatusBadRequest,
+			ErrorForm{Message: fmt.Sprintf("Json-error %s", err.Error())},
+		)
+		if err != nil {
+			slog.Error("Global error")
+			return
+		}
+		w.Write(result)
+		return
+	}
+
+	if err := auth.userService.Register(&userDto); err != nil {
+		result, err := httpmanager.Response[ErrorForm](
+			http.StatusBadRequest,
+			ErrorForm{Message: fmt.Sprintf("Register-error %s", err.Error())},
+		)
+		if err != nil {
+			slog.Error("Global error")
+			return
+		}
+		w.Write(result)
+		return
+	}
+	result, _ := httpmanager.Response[RegisterForm](http.StatusOK, RegisterForm{Status: true})
+	w.Write(result)
+	return
+}
+
 func New(userService handlers.IUserService) *AuthHandler {
 	return &AuthHandler{userService: userService}
 }
@@ -72,7 +105,9 @@ func AuthRouter(path string, authHandler IAuthHandler) {
 
 	fmt.Println(path)
 	router.HandleFunc(fmt.Sprintf("/%s/signin", path), authHandler.SignIn).Methods("POST")
-	//router.HandleFunc("/register", authHandler.RegisterHandle).Methods("POST")
+	router.HandleFunc(fmt.Sprintf("/%s/register", path), authHandler.Register).Methods("POST")
 
 	http.Handle("/", router)
 }
+
+// valentin228Tubik@sasd

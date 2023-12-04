@@ -25,7 +25,7 @@ func TestSignIn(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	authModule := New(client, log)
+	authModule := New(client, log, "auth")
 	token, err := authModule.UserService.SignIn(&userDto)
 	require.NoError(t, err)
 	fmt.Println(token)
@@ -44,7 +44,7 @@ func TestRegister(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	authModule := New(client, log)
+	authModule := New(client, log, "auth")
 	err = authModule.UserService.Register(&userDto)
 	require.NoError(t, err)
 }
