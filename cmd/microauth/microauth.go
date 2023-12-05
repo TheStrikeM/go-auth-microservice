@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"microauth/internal/domain/config"
 	"microauth/internal/modules"
@@ -10,7 +13,10 @@ import (
 	"microauth/pkg/logger/handlers/slogpretty"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 )
 
 const (
@@ -35,27 +41,46 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func(clientGo *postgresql.PSQLClient, loggerGo *slog.Logger) {
-		defer wg.Done()
-		loggerGo.Debug("[HTTP and ModuleInitializer] Create connection and fetching all module routers...")
-		RunServer(9090, clientGo, loggerGo)
-	}(client, logger)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer cancel()
 
+	wg.Add(1)
+	go func(ctx context.Context, clientGo *postgresql.PSQLClient, loggerGo *slog.Logger) {
+		defer wg.Done()
+		loggerGo.Debug("[HTTP] Create connection and fetching all module routers...")
+		MustRunServer(ctx, 9090, clientGo, loggerGo)
+	}(ctx, client, logger)
 	wg.Wait()
+
 }
 
-func RunServer(port int, client *postgresql.PSQLClient, log *slog.Logger) {
+func MustRunServer(ctx context.Context, port int, client *postgresql.PSQLClient, log *slog.Logger) {
 	moduleInitializer := modules.New(client, log)
 	moduleInitializer.CreateAllRoutes()
 
-	//http.HandleFunc("/test", func(w http.ResponseWriter, req *http.Request) {
-	//	w.Write([]byte("Hello world!!!"))
-	//})
+	httpServer := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
-	if err != nil {
-		panic(err)
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		log.Debug("[HTTP] Enabling server, please wait...")
+		return httpServer.ListenAndServe()
+	})
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	g.Go(func() error {
+		log.Debug("[HTTP] Start handling signals")
+		<-gCtx.Done()
+		log.Debug("[HTTP] Disabling server, please wait...")
+		return httpServer.Shutdown(shutdownCtx)
+	})
+
+	if err := g.Wait(); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Info("[HTTP] Server success closed, good luck")
+		}
 	}
 }
 
