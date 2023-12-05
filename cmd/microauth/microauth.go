@@ -48,13 +48,13 @@ func main() {
 	go func(ctx context.Context, clientGo *postgresql.PSQLClient, loggerGo *slog.Logger) {
 		defer wg.Done()
 		loggerGo.Debug("[HTTP] Create connection and fetching all module routers...")
-		MustRunServer(ctx, 9090, clientGo, loggerGo)
+		RunServer(ctx, 9090, clientGo, loggerGo)
 	}(ctx, client, logger)
 	wg.Wait()
 
 }
 
-func MustRunServer(ctx context.Context, port int, client *postgresql.PSQLClient, log *slog.Logger) {
+func RunServer(ctx context.Context, port int, client *postgresql.PSQLClient, log *slog.Logger) {
 	moduleInitializer := modules.New(client, log)
 	moduleInitializer.CreateAllRoutes()
 
