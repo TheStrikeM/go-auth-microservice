@@ -9,18 +9,18 @@ import (
 	"microauth/internal/storage/clients/postgresql"
 )
 
-type Auth struct {
-	UserRepo    services.IUserRepo
-	UserService handlers.IUserService
-	Views       AuthViews
-	log         *slog.Logger
+type AuthModule struct {
+	Repo    services.IUserRepo
+	Service handlers.IUserService
+	Views   Views
+	log     *slog.Logger
 }
 
-type AuthViews struct {
+type Views struct {
 	Http authHttp.IAuthHandler
 }
 
-func New(client *postgresql.PSQLClient, log *slog.Logger, httpRoute string) *Auth {
+func New(client *postgresql.PSQLClient, log *slog.Logger, httpRoute string) *AuthModule {
 	userRepo := repositories.New(client)
 	userService := services.New(userRepo, log)
 
@@ -28,10 +28,10 @@ func New(client *postgresql.PSQLClient, log *slog.Logger, httpRoute string) *Aut
 	if httpRoute != "" {
 		authHttp.AuthRouter(httpRoute, authHandler)
 	}
-	return &Auth{
-		UserRepo:    userRepo,
-		UserService: userService,
-		log:         log,
-		Views:       AuthViews{Http: authHandler},
+	return &AuthModule{
+		Repo:    userRepo,
+		Service: userService,
+		log:     log,
+		Views:   Views{Http: authHandler},
 	}
 }

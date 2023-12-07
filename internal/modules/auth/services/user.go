@@ -6,8 +6,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 	"log/slog"
+	domainModels "microauth/internal/domain/models"
 	"microauth/internal/modules/auth/models/dto"
-	"microauth/internal/modules/auth/models/models"
 	"microauth/pkg/hash"
 	jwtManager "microauth/pkg/jwt"
 	"time"
@@ -24,8 +24,8 @@ var (
 
 type IUserRepo interface {
 	AddUser(ctx context.Context, userDto *dto.UserDTO) error
-	User(ctx context.Context, userDto *dto.UserDTO) (*models.User, error)
-	UserWithoutPassword(ctx context.Context, userDto *dto.UserDTO) (*models.User, error)
+	User(ctx context.Context, userDto *dto.UserDTO) (*domainModels.User, error)
+	UserWithoutPassword(ctx context.Context, userDto *dto.UserDTO) (*domainModels.User, error)
 }
 
 type UserService struct {
@@ -95,6 +95,10 @@ func (us *UserService) Register(userDto *dto.UserDTO) (err error) {
 	}
 
 	return nil
+}
+
+func (us *UserService) CompareToken(token string) (err error) {
+	panic("implement me")
 }
 
 func isValidPassword(pass string) bool {

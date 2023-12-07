@@ -5,8 +5,8 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
+	"microauth/internal/domain/models"
 	"microauth/internal/modules/auth/models/dto"
-	"microauth/internal/modules/auth/models/models"
 	"microauth/internal/storage/clients/postgresql"
 )
 
@@ -30,6 +30,7 @@ func (ur *UserRepository) AddUser(ctx context.Context, ud *dto.UserDTO) error {
 	var id string
 	if err := ur.client.DbPool.QueryRow(ctx, query, ud.Username, ud.Password).Scan(&id); err != nil {
 		var pgErr *pgconn.PgError
+		// TODO: Не работает
 		if errors.As(err, &pgErr) {
 			ur.log.Error(postgresql.GetError(err))
 		}
