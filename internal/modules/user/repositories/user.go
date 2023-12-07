@@ -7,13 +7,6 @@ import (
 	"microauth/internal/storage/clients/postgresql"
 )
 
-type IUserRepository interface {
-	UserById(ctx context.Context, id string) (*models.User, error)
-	UserByUsername(ctx context.Context, username string) (*models.User, error)
-	DeleteUser(ctx context.Context, id string) error
-	UpdateUser(ctx context.Context, id string, dto *dto.UpdateUserDto) (*models.User, error)
-}
-
 type UserRepository struct {
 	client *postgresql.PSQLClient
 }
@@ -24,6 +17,7 @@ func New(client *postgresql.PSQLClient) *UserRepository {
 	}
 }
 
+// https://stackoverflow.com/questions/61704842/how-to-scan-a-queryrow-into-a-struct-with-pgx
 func (ur *UserRepository) UserById(ctx context.Context, id string) (*models.User, error) {
 	query := `
 		SELECT *
@@ -54,7 +48,7 @@ func (ur *UserRepository) UserByUsername(ctx context.Context, id string) (*model
 	return &user, nil
 }
 
-func (ur *UserRepository) UpdateUser(ctx context.Context, id string, dto dto.UpdateUserDto) (*models.User, error) {
+func (ur *UserRepository) UpdateUser(ctx context.Context, id string, dto *dto.UpdateUserDto) (*models.User, error) {
 	query := `
 		UPDATE public.users
 		SET username=$1, password=$2
@@ -63,9 +57,23 @@ func (ur *UserRepository) UpdateUser(ctx context.Context, id string, dto dto.Upd
 	`
 
 	var user models.User
-	if err := ur.client.DbPool.QueryRow(ctx, query, dt).Scan(&user); err != nil {
+	if err := ur.client.DbPool.QueryRow(ctx, query, dto.Username, dto.Password, id).Scan(&user); err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+}
+
+func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
+	query := `
+		DELETE 
+		FROM public.users
+		WHERE  id=$1
+	`
+
+	if err := ur.client.DbPool.QueryRow(ctx, query).Scan(); err != nil {
+		return err
+	}
+
+	return nil
 }

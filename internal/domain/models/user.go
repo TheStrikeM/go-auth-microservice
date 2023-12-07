@@ -1,6 +1,7 @@
 package models
 
 type User struct {
-	ID, Username string
-	PassHash     string
+	ID       string `db:"id"`
+	Username string `db:"username"`
+	PassHash string `db:"password"`
 }

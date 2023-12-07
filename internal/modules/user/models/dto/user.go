@@ -1,6 +1,6 @@
 package dto
 
 type UpdateUserDto struct {
-	username string
-	password string
+	Username string `db:"username"`
+	Password string `db:"password"`
 }
