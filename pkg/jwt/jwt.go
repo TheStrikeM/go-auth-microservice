@@ -27,7 +27,7 @@ func getSecretKey() string {
 
 func GetPayload(token string) (*dto.UserDTO, error) {
 	claims := jwt.MapClaims{}
-	jwtToken, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(getSecretKey()), nil
 	})
 
@@ -35,5 +35,5 @@ func GetPayload(token string) (*dto.UserDTO, error) {
 		return nil, err
 	}
 
-	claims["sub"]
+	panic("implement me")
 }

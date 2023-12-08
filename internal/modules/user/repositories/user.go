@@ -2,9 +2,11 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"microauth/internal/domain/models"
 	"microauth/internal/modules/user/models/dto"
 	"microauth/internal/storage/clients/postgresql"
+	"time"
 )
 
 type UserRepository struct {
@@ -26,10 +28,9 @@ func (ur *UserRepository) UserById(ctx context.Context, id string) (*models.User
 	`
 
 	var user models.User
-	if err := ur.client.DbPool.QueryRow(ctx, query, id).Scan(&user); err != nil {
+	if err := ur.client.DbPool.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.PassHash); err != nil {
 		return nil, err
 	}
-
 	return &user, nil
 }
 
@@ -41,7 +42,7 @@ func (ur *UserRepository) UserByUsername(ctx context.Context, id string) (*model
 	`
 
 	var user models.User
-	if err := ur.client.DbPool.QueryRow(ctx, query, id).Scan(&user); err != nil {
+	if err := ur.client.DbPool.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.PassHash); err != nil {
 		return nil, err
 	}
 
@@ -56,24 +57,40 @@ func (ur *UserRepository) UpdateUser(ctx context.Context, id string, dto *dto.Up
 		RETURNING *
 	`
 
-	var user models.User
-	if err := ur.client.DbPool.QueryRow(ctx, query, dto.Username, dto.Password, id).Scan(&user); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	current, err := ur.UserById(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
+	if dto.Password == "" {
+		dto.Password = current.PassHash
+	}
+
+	if dto.Username == "" {
+		dto.Username = current.Username
+	}
+	var user models.User
+	if err := ur.client.DbPool.QueryRow(ctx, query, dto.Username, dto.Password, id).Scan(&user.ID, &user.Username, &user.PassHash); err != nil {
+		return nil, err
+	}
+
+	fmt.Println(user.Username, user.PassHash)
 	return &user, nil
 }
 
-func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
+func (ur *UserRepository) DeleteUser(ctx context.Context, id string) (string, error) {
 	query := `
 		DELETE 
 		FROM public.users
-		WHERE  id=$1
+		WHERE id=$1
+		RETURNING id
 	`
-
-	if err := ur.client.DbPool.QueryRow(ctx, query).Scan(); err != nil {
-		return err
+	var deletedId string
+	if err := ur.client.DbPool.QueryRow(ctx, query, &id).Scan(&deletedId); err != nil {
+		return "", err
 	}
-
-	return nil
+	return deletedId, nil
 }

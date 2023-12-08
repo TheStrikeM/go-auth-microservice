@@ -11,7 +11,7 @@ import (
 type IUserRepository interface {
 	UserById(ctx context.Context, id string) (*models.User, error)
 	UserByUsername(ctx context.Context, username string) (*models.User, error)
-	DeleteUser(ctx context.Context, id string) error
+	DeleteUser(ctx context.Context, id string) (string, error)
 	UpdateUser(ctx context.Context, id string, dto *dto.UpdateUserDto) (*models.User, error)
 }
 
@@ -50,9 +50,11 @@ func (us *UserService) DeleteUser(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := us.repo.DeleteUser(ctx, id); err != nil {
+	id, err := us.repo.DeleteUser(ctx, id)
+	if err != nil {
 		return err
 	}
+	us.log.Debug("[USER-MODULE] Id deleted: " + id)
 
 	return nil
 }
